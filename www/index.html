@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Aplikasi Absensi Lengkap</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #f3f4f6;
+            overscroll-behavior-y: none;
+        }
+        ::-webkit-scrollbar { display: none; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Modal / Pipup Styling */
+        .modal-overlay {
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-content {
+            transform: translateY(100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        /* FAB Styling */
+        .fab-container {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            background: #ffffff;
+            padding: 6px;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-gray-100 text-gray-800 relative">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-md z-10 sticky top-0">
+        <div class="flex justify-between items-center pt-2">
+            <div>
+                <h1 class="text-xl font-bold">AbsenKu</h1>
+                <p class="text-xs text-blue-200" id="current-date">Memuat tanggal...</p>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center border-2 border-white shadow-sm overflow-hidden" onclick="switchTab('profile')">
+                <i class="fas fa-user text-white"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto pb-24 relative">
+        
+        <!-- FITUR 1: Dashboard (Home) -->
+        <section id="home" class="tab-content active p-4">
+            <div class="bg-white rounded-2xl p-6 shadow-sm mb-4 text-center">
+                <h2 class="text-gray-500 text-sm mb-1">Waktu Saat Ini</h2>
+                <div id="live-clock" class="text-4xl font-black text-blue-600 tracking-wider mb-2">00:00:00</div>
+                <p class="text-sm text-gray-400">Pastikan lokasi GPS Anda aktif</p>
+            </div>
+
+            <h3 class="font-bold text-gray-700 mb-3">Ringkasan Bulan Ini</h3>
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="bg-green-100 p-3 rounded-xl text-center shadow-sm">
+                    <i class="fas fa-calendar-check text-green-600 text-xl mb-1"></i>
+                    <p class="text-[11px] text-gray-600 uppercase font-semibold">Tepat Waktu</p>
+                    <p class="font-black text-green-700 text-xl" id="stat-hadir">0</p>
+                </div>
+                <div class="bg-yellow-100 p-3 rounded-xl text-center shadow-sm">
+                    <i class="fas fa-clock text-yellow-600 text-xl mb-1"></i>
+                    <p class="text-[11px] text-gray-600 uppercase font-semibold">Terlambat</p>
+                    <p class="font-black text-yellow-700 text-xl" id="stat-terlambat">0</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-xl text-center shadow-sm">
+                    <i class="fas fa-plane-departure text-blue-600 text-xl mb-1"></i>
+                    <p class="text-[11px] text-gray-600 uppercase font-semibold">Cuti/Izin</p>
+                    <p class="font-black text-blue-700 text-xl" id="stat-cuti">0</p>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <div class="flex items-center">
+                    <i class="fas fa-info-circle text-blue-500 text-2xl mr-3"></i>
+                    <div>
+                        <h4 class="font-semibold text-blue-800 text-sm">Informasi</h4>
+                        <p class="text-xs text-blue-600">Jam masuk adalah sebelum 08:00 WIB. Lebih dari itu dihitung terlambat.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FITUR 3: Riwayat (History) -->
+        <section id="history" class="tab-content p-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Riwayat Absensi</h2>
+            <div class="flex justify-between mb-3">
+                <button onclick="clearHistory('absensi')" class="text-xs text-red-500 font-semibold"><i class="fas fa-trash"></i> Bersihkan Riwayat</button>
+            </div>
+            <div id="history-list" class="space-y-3">
+                <!-- Dirender via JS -->
+            </div>
+        </section>
+
+        <!-- FITUR 4: Pengajuan Cuti (Leave) -->
+        <section id="leave" class="tab-content p-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Pengajuan Cuti</h2>
+            <form id="form-cuti" class="bg-white rounded-2xl p-5 shadow-sm mb-6" onsubmit="submitCuti(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Cuti/Izin</label>
+                    <select id="cuti-jenis" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white">
+                        <option value="Cuti Tahunan">Cuti Tahunan</option>
+                        <option value="Sakit">Sakit (Dengan Surat Dokter)</option>
+                        <option value="Izin">Izin Kepentingan Keluarga</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
+                        <input type="date" id="cuti-dari" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none text-sm bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sampai</label>
+                        <input type="date" id="cuti-sampai" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none text-sm bg-white">
+                    </div>
+                </div>
+                <div class="mb-5">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
+                    <textarea id="cuti-ket" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none text-sm bg-white" rows="3" placeholder="Tulis alasan secara jelas..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold rounded-lg p-3 active:bg-blue-700 transition">Kirim Pengajuan</button>
+            </form>
+
+            <h3 class="font-bold text-gray-700 mb-3">Riwayat Pengajuan</h3>
+            <div id="cuti-list" class="space-y-3">
+                <!-- Dirender via JS -->
+            </div>
+        </section>
+
+        <!-- FITUR 5: Profil -->
+        <section id="profile" class="tab-content p-4">
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
+                <div class="bg-blue-600 h-24 relative">
+                    <button onclick="toggleEditProfile()" class="absolute top-3 right-3 text-white bg-black/20 p-2 rounded-full text-xs hover:bg-black/40 transition">
+                        <i class="fas fa-pen"></i> Edit
+                    </button>
+                </div>
+                <div class="px-5 pb-5 relative text-center">
+                    <div class="w-20 h-20 bg-gray-200 rounded-full border-4 border-white absolute -top-10 left-1/2 transform -translate-x-1/2 flex items-center justify-center mx-auto shadow-md overflow-hidden">
+                        <img id="profile-avatar" src="https://ui-avatars.com/api/?name=User&background=random" class="w-full h-full object-cover">
+                    </div>
+                    <div class="pt-12">
+                        <h2 class="text-xl font-bold text-gray-800" id="display-name">Memuat...</h2>
+                        <p class="text-sm text-gray-500" id="display-role">Memuat...</p>
+                        <p class="text-xs text-blue-500 font-semibold mt-1">ID: <span id="display-id">-</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-sm p-2">
+                <ul class="divide-y divide-gray-100">
+                    <li class="p-3 flex items-center justify-between active:bg-gray-50 transition rounded-lg" onclick="alert('Versi Aplikasi: 1.0.0\nDibuat oleh AI Developer')">
+                        <div class="flex items-center"><i class="fas fa-info-circle text-gray-400 w-6"></i> Tentang Aplikasi</div>
+                        <i class="fas fa-chevron-right text-gray-300 text-xs"></i>
+                    </li>
+                    <li class="p-3 flex items-center justify-between text-red-600 active:bg-red-50 transition rounded-lg mt-2 cursor-pointer" onclick="logoutApp()">
+                        <div class="flex items-center font-semibold"><i class="fas fa-sign-out-alt w-6"></i> Keluar & Hapus Data</div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FITUR 2: Icon Pipup (Modal / Popup Absen) -->
+    <div id="absen-pipup" class="modal-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
+        <div class="modal-content w-full bg-white rounded-t-3xl p-6 shadow-2xl relative">
+            <button onclick="togglePipup()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+            
+            <div class="text-center mb-6 mt-2">
+                <div class="w-16 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                <h3 class="text-xl font-bold text-gray-800">Rekam Kehadiran</h3>
+                <div id="location-box" class="mt-2 bg-gray-50 p-2 rounded-lg text-sm border border-gray-100">
+                    <p class="text-gray-500" id="location-text"><i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Mendeteksi lokasi GPS...</p>
+                    <p class="text-[10px] text-gray-400 mt-1" id="location-coords"></p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <button onclick="prosesAbsen('Masuk')" class="flex flex-col items-center justify-center p-4 bg-green-50 rounded-2xl border border-green-200 active:bg-green-100 transition shadow-sm">
+                    <div class="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-white text-2xl mb-2 shadow-md shadow-green-200">
+                        <i class="fas fa-sign-in-alt"></i>
+                    </div>
+                    <span class="font-bold text-green-700">Absen Masuk</span>
+                </button>
+                
+                <button onclick="prosesAbsen('Pulang')" class="flex flex-col items-center justify-center p-4 bg-orange-50 rounded-2xl border border-orange-200 active:bg-orange-100 transition shadow-sm">
+                    <div class="w-14 h-14 bg-orange-500 rounded-full flex items-center justify-center text-white text-2xl mb-2 shadow-md shadow-orange-200">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </div>
+                    <span class="font-bold text-orange-700">Absen Pulang</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Edit Profil -->
+    <div id="edit-profile-modal" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="modal-content w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl relative">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Profil</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Nama Lengkap</label>
+                    <input type="text" id="edit-name" class="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-blue-500 bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Jabatan / Divisi</label>
+                    <input type="text" id="edit-role" class="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-blue-500 bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">ID Karyawan</label>
+                    <input type="text" id="edit-id" class="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-blue-500 bg-gray-50">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="toggleEditProfile()" class="flex-1 bg-gray-200 text-gray-700 font-bold rounded-lg p-2.5">Batal</button>
+                <button onclick="saveProfile()" class="flex-1 bg-blue-600 text-white font-bold rounded-lg p-2.5">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bg-white border-t border-gray-200 fixed bottom-0 w-full z-40 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <div class="flex justify-between items-center relative px-4 sm:px-6 h-16">
+            
+            <button onclick="switchTab('home')" class="nav-btn text-blue-600 flex flex-col items-center p-2 w-16" data-target="home">
+                <i class="fas fa-home text-xl mb-1 transition-transform duration-200"></i>
+                <span class="text-[10px] font-medium">Beranda</span>
+            </button>
+            
+            <button onclick="switchTab('history')" class="nav-btn text-gray-400 flex flex-col items-center p-2 w-16" data-target="history">
+                <i class="fas fa-list-alt text-xl mb-1 transition-transform duration-200"></i>
+                <span class="text-[10px] font-medium">Riwayat</span>
+            </button>
+
+            <!-- Center FAB spacer -->
+            <div class="w-16"></div>
+
+            <!-- The Pipup Trigger Button (FAB) -->
+            <div class="fab-container">
+                <button onclick="togglePipup()" class="bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-blue-300 transform transition active:scale-95 border-4 border-white">
+                    <i class="fas fa-fingerprint text-3xl"></i>
+                </button>
+            </div>
+
+            <button onclick="switchTab('leave')" class="nav-btn text-gray-400 flex flex-col items-center p-2 w-16" data-target="leave">
+                <i class="fas fa-calendar-minus text-xl mb-1 transition-transform duration-200"></i>
+                <span class="text-[10px] font-medium">Cuti</span>
+            </button>
+
+            <button onclick="switchTab('profile')" class="nav-btn text-gray-400 flex flex-col items-center p-2 w-16" data-target="profile">
+                <i class="fas fa-user text-xl mb-1 transition-transform duration-200"></i>
+                <span class="text-[10px] font-medium">Profil</span>
+            </button>
+
+        </div>
+    </nav>
+
+    <!-- JavaScript Logic & State Management -->
+    <script>
+        // --- DATA STATE (Local Storage) ---
+        let userProfile = JSON.parse(localStorage.getItem('user_profile')) || {
+            name: 'Karyawan Demo',
+            role: 'Staff Operasional',
+            id: 'EMP-' + Math.floor(Math.random() * 90000 + 10000)
+        };
+        let userLocation = { text: "Lokasi belum didapatkan", coords: "" };
+
+        // --- INIT APP ---
+        window.onload = function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderProfile();
+            updateDashboardStats();
+            // Optional: Dummy data jika kosong
+            if(!localStorage.getItem('absensi_history')) {
+                let dummyHist = [
+                    { jenis: 'Pulang', waktu: '17:05:00', tanggal: new Date().toLocaleDateString('id-ID'), status: 'Tepat Waktu', lokasi: 'Mock Location (Kantor)' },
+                    { jenis: 'Masuk', waktu: '07:55:00', tanggal: new Date().toLocaleDateString('id-ID'), status: 'Tepat Waktu', lokasi: 'Mock Location (Kantor)' }
+                ];
+                localStorage.setItem('absensi_history', JSON.stringify(dummyHist));
+            }
+        };
+
+        // --- 1. CLOCK & DATE ---
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+            document.getElementById('live-clock').innerText = timeStr;
+            
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('current-date').innerText = now.toLocaleDateString('id-ID', options);
+        }
+
+        // --- 2. NAVIGATION ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.target === tabId) {
+                    btn.classList.replace('text-gray-400', 'text-blue-600');
+                    btn.querySelector('i').classList.add('scale-110');
+                } else {
+                    btn.classList.replace('text-blue-600', 'text-gray-400');
+                    btn.querySelector('i').classList.remove('scale-110');
+                }
+            });
+
+            // Trigger re-render data
+            if(tabId === 'history') renderHistory();
+            if(tabId === 'leave') renderCutiHistory();
+            if(tabId === 'home') updateDashboardStats();
+        }
+
+        // --- 3. PIPUP & GEOLOCATION ---
+        function togglePipup() {
+            const pipup = document.getElementById('absen-pipup');
+            pipup.classList.toggle('active');
+            
+            if(pipup.classList.contains('active')) {
+                getLocation();
+            }
+        }
+
+        function getLocation() {
+            const locText = document.getElementById('location-text');
+            const locCoords = document.getElementById('location-coords');
+            locText.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Mencari sinyal GPS...';
+            locCoords.innerText = '';
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude.toFixed(5);
+                        const lng = position.coords.longitude.toFixed(5);
+                        userLocation.text = "GPS Terkunci (Akurat)";
+                        userLocation.coords = `Lat: ${lat}, Lng: ${lng}`;
+                        
+                        locText.innerHTML = '<i class="fas fa-map-marker-alt text-green-500 mr-1"></i> ' + userLocation.text;
+                        locCoords.innerText = userLocation.coords;
+                    },
+                    (error) => {
+                        userLocation.text = "Gagal membaca GPS";
+                        userLocation.coords = error.message;
+                        locText.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500 mr-1"></i> Izin Lokasi Ditolak/Gagal';
+                        locCoords.innerText = "Gunakan lokasi perkiraan.";
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                locText.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i> GPS Tidak Didukung Perangkat';
+            }
+        }
+
+        // --- 4. PROSES ABSENSI ---
+        function prosesAbsen(jenis) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+            const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            
+            // Logika Terlambat (Masuk di atas jam 08:00)
+            let statusAbsen = "Tepat Waktu";
+            if(jenis === 'Masuk' && now.getHours() >= 8) {
+                statusAbsen = "Terlambat";
+            }
+
+            let history = JSON.parse(localStorage.getItem('absensi_history')) || [];
+            
+            // Mencegah double absen masuk/pulang di hari yang sama (opsional, tapi kita buat simple saja)
+            
+            history.unshift({
+                jenis: jenis,
+                waktu: timeStr,
+                tanggal: dateStr,
+                status: statusAbsen,
+                lokasi: userLocation.coords ? userLocation.coords : 'Lokasi tidak diketahui'
+            });
+            localStorage.setItem('absensi_history', JSON.stringify(history));
+
+            togglePipup();
+            alert(`? Berhasil Absen ${jenis}\nWaktu: ${timeStr}\nStatus: ${statusAbsen}`);
+            
+            updateDashboardStats();
+            if(document.getElementById('history').classList.contains('active')) renderHistory();
+        }
+
+        // --- 5. RENDER HISTORY (ABSENSI) ---
+        function renderHistory() {
+            const container = document.getElementById('history-list');
+            let history = JSON.parse(localStorage.getItem('absensi_history')) || [];
+            
+            if(history.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-gray-400 bg-white rounded-xl">
+                        <i class="fas fa-box-open text-4xl mb-3"></i>
+                        <p class="text-sm">Belum ada riwayat absensi</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = history.map(item => {
+                const isTerlambat = item.status === 'Terlambat';
+                const statusColor = isTerlambat ? 'text-red-500' : 'text-green-500';
+                const statusIcon = isTerlambat ? 'fa-clock' : 'fa-check-circle';
+                const iconColor = item.jenis === 'Masuk' ? 'text-green-600 bg-green-100' : 'text-orange-600 bg-orange-100';
+                const borderColor = item.jenis === 'Masuk' ? 'border-green-500' : 'border-orange-500';
+
+                return `
+                <div class="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between border-l-4 ${borderColor}">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full ${iconColor} flex items-center justify-center mr-3 shrink-0">
+                            <i class="fas ${item.jenis === 'Masuk' ? 'fa-sign-in-alt' : 'fa-sign-out-alt'}"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-800 text-sm">Absen ${item.jenis}</p>
+                            <p class="text-[10px] text-gray-500"><i class="fas fa-calendar-day"></i> ${item.tanggal}</p>
+                            <p class="text-[10px] text-gray-400 mt-0.5 w-32 truncate"><i class="fas fa-map-marker-alt"></i> ${item.lokasi}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-black text-gray-800 text-lg">${item.waktu}</p>
+                        <p class="text-[10px] ${statusColor} font-bold"><i class="fas ${statusIcon}"></i> ${item.status}</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- 6. CUTI LOGIC ---
+        function submitCuti(e) {
+            e.preventDefault();
+            
+            const jenis = document.getElementById('cuti-jenis').value;
+            const dari = document.getElementById('cuti-dari').value;
+            const sampai = document.getElementById('cuti-sampai').value;
+            const ket = document.getElementById('cuti-ket').value;
+
+            if(!dari || !sampai) return alert('Pilih tanggal dengan benar!');
+
+            let cutiHist = JSON.parse(localStorage.getItem('cuti_history')) || [];
+            cutiHist.unshift({
+                jenis: jenis,
+                dari: dari,
+                sampai: sampai,
+                ket: ket,
+                status: 'Menunggu HRD',
+                tanggal_pengajuan: new Date().toLocaleDateString('id-ID')
+            });
+
+            localStorage.setItem('cuti_history', JSON.stringify(cutiHist));
+            
+            alert("? Pengajuan cuti berhasil disimpan dan dikirim!");
+            e.target.reset();
+            renderCutiHistory();
+            updateDashboardStats();
+        }
+
+        function renderCutiHistory() {
+            const container = document.getElementById('cuti-list');
+            let history = JSON.parse(localStorage.getItem('cuti_history')) || [];
+            
+            if(history.length === 0) {
+                container.innerHTML = `<p class="text-center text-sm text-gray-400 py-4 bg-white rounded-xl shadow-sm">Belum ada pengajuan cuti.</p>`;
+                return;
+            }
+
+            container.innerHTML = history.map(item => `
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <span class="text-xs font-bold bg-blue-100 text-blue-700 py-1 px-2 rounded">${item.jenis}</span>
+                        </div>
+                        <span class="text-[10px] bg-yellow-100 text-yellow-700 font-bold px-2 py-1 rounded-full"><i class="fas fa-hourglass-half"></i> ${item.status}</span>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-700 mt-2">${item.dari} s/d ${item.sampai}</p>
+                    <p class="text-xs text-gray-500 mt-1 italic">"${item.ket}"</p>
+                    <p class="text-[9px] text-gray-400 mt-2 text-right">Diajukan: ${item.tanggal_pengajuan}</p>
+                </div>
+            `).join('');
+        }
+
+        // --- 7. DASHBOARD STATS ---
+        function updateDashboardStats() {
+            let absensi = JSON.parse(localStorage.getItem('absensi_history')) || [];
+            let cuti = JSON.parse(localStorage.getItem('cuti_history')) || [];
+
+            let tepatWaktu = 0;
+            let terlambat = 0;
+
+            // Hitung hanya absen "Masuk"
+            absensi.forEach(a => {
+                if(a.jenis === 'Masuk') {
+                    if(a.status === 'Terlambat') terlambat++;
+                    else tepatWaktu++;
+                }
+            });
+
+            document.getElementById('stat-hadir').innerText = tepatWaktu;
+            document.getElementById('stat-terlambat').innerText = terlambat;
+            document.getElementById('stat-cuti').innerText = cuti.length;
+        }
+
+        // --- 8. PROFIL LOGIC ---
+        function renderProfile() {
+            document.getElementById('display-name').innerText = userProfile.name;
+            document.getElementById('display-role').innerText = userProfile.role;
+            document.getElementById('display-id').innerText = userProfile.id;
+            // Generate avatar based on name
+            document.getElementById('profile-avatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.name)}&background=2563eb&color=fff&bold=true`;
+        }
+
+        function toggleEditProfile() {
+            const modal = document.getElementById('edit-profile-modal');
+            if(!modal.classList.contains('active')) {
+                // Set initial values
+                document.getElementById('edit-name').value = userProfile.name;
+                document.getElementById('edit-role').value = userProfile.role;
+                document.getElementById('edit-id').value = userProfile.id;
+            }
+            modal.classList.toggle('active');
+        }
+
+        function saveProfile() {
+            userProfile.name = document.getElementById('edit-name').value || 'Tanpa Nama';
+            userProfile.role = document.getElementById('edit-role').value || '-';
+            userProfile.id = document.getElementById('edit-id').value || '-';
+            
+            localStorage.setItem('user_profile', JSON.stringify(userProfile));
+            renderProfile();
+            toggleEditProfile();
+            alert('Profil berhasil diperbarui!');
+        }
+
+        // --- 9. UTILITY & RESET ---
+        function clearHistory(type) {
+            if(confirm('Yakin ingin menghapus semua riwayat absensi?')) {
+                localStorage.removeItem('absensi_history');
+                renderHistory();
+                updateDashboardStats();
+            }
+        }
+
+        function logoutApp() {
+            if(confirm('Peringatan: Keluar akan menghapus SEMUA data lokal (Riwayat, Cuti, Profil). Lanjutkan?')) {
+                localStorage.clear();
+                alert('Data dibersihkan. Aplikasi akan dimuat ulang.');
+                window.location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
