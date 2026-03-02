@@ -1,2 +1,2 @@
-# Absen KU
-Project ini dibuat otomatis menggunakan BUILD APK Pro.
+# MyAwesomeApp
+Aplikasi sedang di-build secara otomatis oleh GitHub Actions.
