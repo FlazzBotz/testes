@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.example.awesomeapp" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
-    <name>Absen KU</name>
+    <name>MyAwesomeApp</name>
     <description>A mobile app built from HTML</description>
     <author email="dev@example.com" href="https://github.com/FlazzBotz">FlazzBotz</author>
     <content src="index.html" />
@@ -10,6 +10,5 @@
     <preference name="Orientation" value="portrait" />
     <platform name="android">
         <allow-intent href="market:*" />
-        <icon src="res/icon/android/icon.png" />
     </platform>
 </widget>
